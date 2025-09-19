@@ -12,6 +12,7 @@ void app_main(void)
 {
   bsp_init();
   app_init();
+
   while (1) // основной цикл
   {
     BSP_PWR_TENZO_ON;
@@ -24,7 +25,7 @@ void app_main(void)
     {
       app_adc_data_filter(0, ADC_ADS1251);
     }
-
+    protocolMbRtuSlaveCtrl_update_tables();
     if (bsp_get_data_spi_ads1231(145) == SPI_ADC_OK)
     {
       app_adc_data_filter(Bsp.ADC_ADS1231.data_raw, ADC_ADS1231);
@@ -33,6 +34,7 @@ void app_main(void)
     {
       app_adc_data_filter(0, ADC_ADS1231);
     }
+    protocolMbRtuSlaveCtrl_update_tables();
 
     BSP_OUT_TOGGLE(BSP_LED_1);
     //BSP_PWR_TENZO_OFF;
@@ -109,7 +111,7 @@ void app_adc_filter_init()
 void bsp_tim7_100ms_callback()
 {
   app_update_reg();
-  protocolMbRtuSlaveCtrl_update_tables();
+  // protocolMbRtuSlaveCtrl_update_tables();
 
   // BSP_PWR_TENZO_ON;
   // BSP_LED_ON(BSP_LED_1);
@@ -180,10 +182,12 @@ void app_update_reg()
 #define ADC_24BIT_FUL_SCALE (float)(0x16777215UL)
 
 #define ADC_ADS1251_MAX_VAL (float)(8388607.0f)
-#define ADC_ADS1251_REF_VOLT (float)(4.096f)
+#define ADC_ADS1251_REF_VOLT (float)(2.5)
 
-#define ADC_ADS1231_MAX_VAL (float)(4194303.0f)
-#define ADC_ADS1231_REF_VOLT (float)(2.5f)
+// #define ADC_ADS1231_MAX_VAL (float)(4194303.0f)
+
+#define ADC_ADS1231_MAX_VAL (float)(8388608.0f)
+#define ADC_ADS1231_REF_VOLT (float)(2.5)
 
 void app_adc_data_filter(uint32_t ADC_Buf_raw, ADC_enum adc)
 {
