@@ -29,12 +29,12 @@ enum mdb_table_bsp
   tab_bsp_DI_rele_state,
   
   tab_bsp_DO_control,
+  tab_bsp_control,
 
-  ab_bsp_buf_16b_AI_NTC,
-
-  tab_bsp_control
+  tab_bsp_AI_NTC_out_value_raw,
+  tab_bsp_AI_NTC_pcb_value_raw
 };
-#define MDB_BSP_BUF_COUNT (tab_bsp_control - MDB_TABLE_BSP_REG_NO + 1)
+#define MDB_BSP_BUF_COUNT (tab_bsp_AI_NTC_pcb_value_raw - MDB_TABLE_BSP_REG_NO + 1)
 uint16_t mdb_bsp_buf[MDB_BSP_BUF_COUNT];
 
 ModbusSS_table_t mdb_table_bsp = {
@@ -76,12 +76,12 @@ enum mdb_table_adc
   tab_adc_ADS1231_data_i16,
   tab_adc_ADS1231_data_i32_LW,
   tab_adc_ADS1231_data_i32_HW,
+  tab_adc_state,
 
-  tab_adc_NTC_T_i16,
-
-  tab_adc_state
+  tab_adc_NTC_out_i16,
+  tab_adc_NTC_pcb_i16
 };
-#define MDB_ADC_BUF_COUNT (tab_adc_state - MDB_TABLE_ADC_REG_NO + 1)
+#define MDB_ADC_BUF_COUNT (tab_adc_NTC_pcb_i16 - MDB_TABLE_ADC_REG_NO + 1)
 uint16_t mdb_adc_buf[MDB_ADC_BUF_COUNT];
 
 ModbusSS_table_t mdb_table_adc = {
@@ -148,7 +148,8 @@ __INLINE void protocolMbRtuSlaveCtrl_update_tables()
 
   ModbusSS_SetWord(&mdb_table_bsp, tab_bsp_DO_control,              App.DO_control);
 
-  ModbusSS_SetWord(&mdb_table_bsp, ab_bsp_buf_16b_AI_NTC,           Bsp.NTC_value_raw);
+  ModbusSS_SetWord(&mdb_table_bsp, tab_bsp_AI_NTC_out_value_raw,    Bsp.AI.NTC[NTC_out].value_raw);
+  ModbusSS_SetWord(&mdb_table_bsp, tab_bsp_AI_NTC_pcb_value_raw,    Bsp.AI.NTC[NTC_pcb].value_raw);
 
   // --mdb_table_analog
   ModbusSS_SetWord(&mdb_table_analog, tab_analog_ADS1251_filter_N,  App.adc_filter[ADC_ADS1251].filter_N);
@@ -169,12 +170,8 @@ __INLINE void protocolMbRtuSlaveCtrl_update_tables()
   ModbusSS_SetWord(&mdb_table_adc, tab_adc_ADS1231_data_i16,        App.ADC_ADS1231.data_i16);
   ModbusSS_SetWord(&mdb_table_adc, tab_adc_ADS1231_data_i32_LW,     (uint16_t)(App.ADC_ADS1231.data_i32 & 0x0000FFFFUL));
   ModbusSS_SetWord(&mdb_table_adc, tab_adc_ADS1231_data_i32_HW,     (uint16_t)((App.ADC_ADS1231.data_i32 & 0xFFFF0000UL) >> 16));
-
-  ModbusSS_SetWord(&mdb_table_adc, tab_adc_NTC_T_i16,               (uint16_t)App.ADC_T_data_i16);
-
   ModbusSS_SetWord(&mdb_table_adc, tab_adc_state,                   Bsp.SPI_ADC_state);
 
-  
 }
 //------------------------ REGULAR FCN END------------------------
 
@@ -193,12 +190,12 @@ __weak void protocolMbRtuSlaveCtrl_callback_H_WRITE(ModbusSS_table_t *table, uin
     case tab_bsp_DO_control:
       if (BSP_GET_BIT(value, 0) == 1)
       {
-        BSP_OUT_SET(BSP_OUT1);
+        BSP_TERM_OUT_ON;
         BSP_SET_BIT(App.DO_control, 0);
       }
       else
       {
-        BSP_OUT_RESET(BSP_OUT1);
+        BSP_TERM_OUT_OFF;
         BSP_RESET_BIT(App.DO_control, 0);
       }
       break;

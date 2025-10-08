@@ -14,8 +14,9 @@ void bsp_init()
   bsp_tim7_100ms_start();
 
   HAL_ADCEx_Calibration_Start(&hadc2, ADC_SINGLE_ENDED);
+  HAL_Delay(100);
 
-  bsp_tim6_300ms_start();
+  bsp_tim6_500ms_start();
 
   HAL_ADCEx_InjectedStart_IT(&hadc2);
   return;
@@ -322,7 +323,7 @@ __weak void bsp_tim7_100ms_callback()
   asm("Nop");
 }
 
-void bsp_tim6_300ms_start()
+void bsp_tim6_500ms_start()
 {
   HAL_TIM_Base_Start(&htim6);
 }
@@ -335,7 +336,12 @@ void ADC1_2_IRQHandler(void)
   if (__HAL_ADC_GET_FLAG(&hadc2, ADC_FLAG_JEOS) != 0)
   {
     __HAL_ADC_CLEAR_FLAG(&hadc2, ADC_FLAG_JEOS);
-    Bsp.NTC_value_raw = HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_1)/16;
+
+    Bsp.AI.NTC[NTC_out].value_raw = HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_1)/16;
+    Bsp.AI.NTC[NTC_pcb].value_raw = HAL_ADCEx_InjectedGetValue(&hadc2, ADC_INJECTED_RANK_2)/16;
+
+    Bsp.AI.NTC[NTC_out].value = bsp_get_temp_NTC_out(Bsp.AI.NTC[NTC_out].value_raw);
+    Bsp.AI.NTC[NTC_pcb].value = bsp_get_temp_NTC_pcb(Bsp.AI.NTC[NTC_pcb].value_raw);
   }
 }
 
@@ -343,9 +349,82 @@ __weak void bsp_ADC_data_ready()
 {
   asm("Nop");
 }
+
+
+int16_t bsp_get_temp_NTC_out(uint16_t value_raw)
+{
+  //@do - сделать преобразования для получения температуры
+  asm("Nop");
+  const bsp_point_typedef tempPoints[] = {
+    {.x = 7500.0f,  .y = 100.0f},
+    {.x = 10000.0f, .y = 85.0f},
+    {.x = 12500.0f, .y = 78.0f},
+    {.x = 20000.0f, .y = 62.0f},
+    {.x = 30000.0f, .y = 46.0f},
+    {.x = 35000.0f, .y = 40.0f},
+    {.x = 65535.0f, .y = 5.0f}};
+
+  const uint8_t tempPointsCount = sizeof(tempPoints) / sizeof(tempPoints[0]);
+
+  return bsp_lineApprox(tempPoints, tempPointsCount, value_raw);
+}
+
+int16_t bsp_get_temp_NTC_pcb(uint16_t value_raw)
+{
+  //@do - сделать преобразования для получения температуры
+  asm("Nop");
+  const bsp_point_typedef tempPoints[] = {
+    {.x = 7500.0f,  .y = 100.0f},
+    {.x = 10000.0f, .y = 85.0f},
+    {.x = 12500.0f, .y = 78.0f},
+    {.x = 20000.0f, .y = 62.0f},
+    {.x = 30000.0f, .y = 46.0f},
+    {.x = 35000.0f, .y = 40.0f},
+    {.x = 65535.0f, .y = 5.0f}};
+
+  const uint8_t tempPointsCount = sizeof(tempPoints) / sizeof(tempPoints[0]);
+
+  return bsp_lineApprox(tempPoints, tempPointsCount, value_raw);
+}
+
+float bsp_lineApprox(const bsp_point_typedef *points, uint8_t count, float input)
+{
+  // in range
+  if (input < points[0].x)
+  {
+    return points[0].y;
+  }
+  if (input > points[count - 1].x)
+  {
+    return points[count - 1].y;
+  }
+
+  if (count < 2)
+  {
+    return 0.0f;
+  }
+
+  // find line
+  uint8_t idx = 0;
+  for (int i = 1; i < count; i++)
+  {
+    if (input < points[i].x)
+    {
+      idx = i;
+      break;
+    }
+  }
+
+  if (idx == 0)
+    return 0.0f;
+
+  return (input - points[idx - 1].x) * ((points[idx].y - points[idx - 1].y) / (points[idx].x - points[idx - 1].x)) + points[idx - 1].y;
+}
+
 // ---------------------------- ADC END ----------------------------------
 
 // ------------------------------ SPI ------------------------------------
+
 SPI_ADC_status_typedef bsp_get_data_spi_ads1251(uint8_t timeout)
 {
   uint32_t tickstart = 0;
@@ -359,14 +438,14 @@ SPI_ADC_status_typedef bsp_get_data_spi_ads1251(uint8_t timeout)
   HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);
 
   // Производим 5 преобразвоаний АЦП для большей точности, берем значение 5-го преобразования
-  for (uint8_t i = 0; i < 5; i++)
+  for (uint8_t i = 0; i < 4; i++)
   {
     while ((BSP_GET_DI(BSP_SPI2_MISO) == GPIO_PIN_RESET) && ((HAL_GetTick() - tickstart) <  timeout))  { asm("Nop"); }
     while ((BSP_GET_DI(BSP_SPI2_MISO) == GPIO_PIN_SET)   && ((HAL_GetTick() - tickstart) <  timeout))  { asm("Nop"); }
     while ((BSP_GET_DI(BSP_SPI2_MISO) == GPIO_PIN_RESET) && ((HAL_GetTick() - tickstart) <  timeout))  { asm("Nop"); }
     while ((BSP_GET_DI(BSP_SPI2_MISO) == GPIO_PIN_SET)   && ((HAL_GetTick() - tickstart) <  timeout))  { asm("Nop"); }
 
-    for (uint8_t i = 0; i < 200; i++) { asm("Nop"); }
+    for (uint8_t i = 0; i < 50; i++) { asm("Nop"); }
 
     HAL_SPI_Receive(&hspi2, &Bsp.ADC_ADS1251.spi_buf[0], 4, 1);
   }
@@ -374,6 +453,7 @@ SPI_ADC_status_typedef bsp_get_data_spi_ads1251(uint8_t timeout)
   // Выключаем тактирование АЦП
   HAL_TIM_OC_Stop_IT(&htim1, TIM_CHANNEL_1);
 
+  Bsp.ADC_ADS1251.data_raw = 0;
   Bsp.ADC_ADS1251.data_raw |= ((uint32_t)Bsp.ADC_ADS1251.spi_buf[0] << 16);
   Bsp.ADC_ADS1251.data_raw |= ((uint32_t)Bsp.ADC_ADS1251.spi_buf[1] << 8);
   Bsp.ADC_ADS1251.data_raw |= ((uint32_t)Bsp.ADC_ADS1251.spi_buf[2] << 0);
@@ -409,15 +489,15 @@ SPI_ADC_status_typedef bsp_get_data_spi_ads1231(uint8_t timeout)
   while ((BSP_GET_DI(BSP_SPI1_MISO) == GPIO_PIN_RESET) && ((HAL_GetTick() - tickstart) <  timeout))  { asm("Nop"); }
 
   // Производим 5 преобразвоаний АЦП для большей точности, берем значение 5-го преобразования
-  for (uint8_t i = 0; i < 5; i++)
+  for (uint8_t i = 0; i < 1; i++)
   {
     while ((BSP_GET_DI(BSP_SPI1_MISO) == GPIO_PIN_SET) && ((HAL_GetTick() - tickstart) <  timeout))  { asm("Nop"); }
 
     for (uint8_t i = 0; i < 200; i++) { asm("Nop"); }
 
-    HAL_SPI_Receive(&hspi1, &Bsp.ADC_ADS1231.spi_buf[0], 4, 1);
+    HAL_SPI_Receive(&hspi1, &Bsp.ADC_ADS1231.spi_buf[0], 4, 2);
   }
-  
+  Bsp.ADC_ADS1231.data_raw = 0;
   Bsp.ADC_ADS1231.data_raw |= ((uint32_t)Bsp.ADC_ADS1231.spi_buf[0] << 16);
   Bsp.ADC_ADS1231.data_raw |= ((uint32_t)Bsp.ADC_ADS1231.spi_buf[1] << 8);
   Bsp.ADC_ADS1231.data_raw |= ((uint32_t)Bsp.ADC_ADS1231.spi_buf[2] << 0);

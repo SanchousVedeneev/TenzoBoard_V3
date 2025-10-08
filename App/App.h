@@ -53,6 +53,8 @@ typedef struct
     uint8_t DI_state;
     uint8_t DI_rele_state;
     uint8_t DO_control;
+    int16_t AI_NTC_out_value;
+    int16_t AI_NTC_pcb_value;
 } App_typedef;
 
 //------------------------------ FUNCTION ------------------------------//
@@ -64,7 +66,7 @@ void app_adc_filter_init();
 void app_setupParam_init();
 void app_setupParam_setDefolt();
 
-int16_t app_get_temp_NTC(uint16_t value_raw);
+
 //---------------------------- FUNCTION END ----------------------------//
 
 #endif

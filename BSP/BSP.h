@@ -8,9 +8,11 @@
 #include "adc.h"
 
 //------------------------------ DEFINE ------------------------------//
+#define BSP_SPI1_MISO             GPIOA, GPIO_PIN_6
+#define BSP_SPI2_MISO             GPIOB, GPIO_PIN_14
+
 #define BSP_LED_1                 DO_LED_1_GPIO_Port, DO_LED_1_Pin
 #define BSP_LED_2                 DO_LED_2_GPIO_Port, DO_LED_2_Pin
-
 #define BSP_LED_ON(LED)			  HAL_GPIO_WritePin(LED, GPIO_PIN_SET)
 #define BSP_LED_OFF(LED)	      HAL_GPIO_WritePin(LED, GPIO_PIN_RESET)
 #define BSP_LED_TOGGLE(LED)		  HAL_GPIO_TogglePin(LED)
@@ -21,24 +23,19 @@
 #define BSP_ADR_3                 DI_ADR_3_GPIO_Port, DI_ADR_3_Pin
 #define BSP_ADR_4                 DI_ADR_4_GPIO_Port, DI_ADR_4_Pin
 #define BSP_ADR_5                 DI_ADR_5_GPIO_Port, DI_ADR_5_Pin
+#define BSP_GET_DI(PORT_PIN)      (HAL_GPIO_ReadPin(PORT_PIN))
 
-#define BSP_IN1                   DI_IN_1_GPIO_Port, DI_IN_1_Pin
+#define BSP_TERM_OUT              Term_PCB_out_GPIO_Port, Term_PCB_out_Pin
+#define BSP_TERM_OUT_OFF	      HAL_GPIO_WritePin(BSP_TERM_OUT, GPIO_PIN_SET)
+#define BSP_TERM_OUT_ON	          HAL_GPIO_WritePin(BSP_TERM_OUT, GPIO_PIN_RESET)
 
-#define BSP_OUT1                  DO_OUT_1_GPIO_Port, DO_OUT_1_Pin
-
-#define BSP_SPI1_MISO             GPIOA, GPIO_PIN_6
-#define BSP_SPI2_MISO             GPIOB, GPIO_PIN_14
+#define BSP_SLEEP                 DO_SLEEP_GPIO_Port, DO_SLEEP_Pin
+#define BSP_PWR_TENZO_ON	      HAL_GPIO_WritePin(BSP_SLEEP, GPIO_PIN_SET)
+#define BSP_PWR_TENZO_OFF         HAL_GPIO_WritePin(BSP_SLEEP, GPIO_PIN_RESET)
 
 #define BSP_OUT_SET(OUT)	      HAL_GPIO_WritePin(OUT, GPIO_PIN_SET)
 #define BSP_OUT_RESET(OUT)	      HAL_GPIO_WritePin(OUT, GPIO_PIN_RESET)
 #define BSP_OUT_TOGGLE(OUT)	      HAL_GPIO_TogglePin(OUT)
-
-#define BSP_GET_DI(PORT_PIN)      (HAL_GPIO_ReadPin(PORT_PIN))
-
-#define BSP_SLEEP                 DO_SLEEP_GPIO_Port, DO_SLEEP_Pin
-
-#define BSP_PWR_TENZO_ON	      HAL_GPIO_WritePin(BSP_SLEEP, GPIO_PIN_SET)
-#define BSP_PWR_TENZO_OFF         HAL_GPIO_WritePin(BSP_SLEEP, GPIO_PIN_RESET)
 
 #define BSP_GET_BIT(REG, BIT)     (REG & (1 << BIT))
 #define BSP_SET_BIT(REG, BIT)     (REG |= (1 << BIT))
@@ -79,7 +76,7 @@ uint8_t bsp_get_adr_mdb();
 void bsp_tim7_100ms_start();
 void bsp_tim7_100ms_callback();
 
-void bsp_tim6_300ms_start();
+void bsp_tim6_500ms_start();
 // --------------------------- TIM END --------------------------- //
 
 // ----------------------------- SPI ----------------------------- //
@@ -100,17 +97,46 @@ typedef struct
     uint32_t data_raw;
 } SPI_ADC_typedef;
 
+
+
+typedef enum
+{
+    NTC_out = 0,
+    NTC_pcb
+} NTC_ENUM;
+
+typedef struct 
+{
+    float value_raw;
+    float value;
+} NTC_typedef;
+
+#define AI_NTC_COUNT (2)
+typedef struct 
+{
+    NTC_typedef NTC[AI_NTC_COUNT];
+} AI_typedef;
+
 typedef struct 
 {
     SPI_ADC_typedef ADC_ADS1251;
     SPI_ADC_typedef ADC_ADS1231;
     uint8_t         SPI_ADC_state;
-    uint16_t        NTC_value_raw;
+    AI_typedef      AI;
 } BSP_typedef;
 // --------------------------- SPI END --------------------------- //
 
 // ----------------------------- ADC ----------------------------- //
+typedef struct
+{
+	float x;
+	float y;
+}bsp_point_typedef;
 
+int16_t bsp_get_temp_NTC_out(uint16_t value_raw);
+int16_t bsp_get_temp_NTC_pcb(uint16_t value_raw);
+
+float bsp_lineApprox(const bsp_point_typedef *points, uint8_t count, float input);
 // --------------------------- ADC END --------------------------- //
 
 void bsp_init();
